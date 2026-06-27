@@ -1,0 +1,26 @@
+{
+  "name": "Style Transformer",
+  "short_name": "Transformer",
+  "description": "Transform dense academic writing into Mark Manson's conversational style",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "portrait-primary",
+  "theme_color": "#1e1b4b",
+  "background_color": "#1e1b4b",
+  "categories": ["productivity", "utilities"],
+  "icons": [
+    {
+      "src": "/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    }
+  ]
+}
