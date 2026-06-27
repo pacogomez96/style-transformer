@@ -60,7 +60,7 @@ const StyleTransformer = () => {
         const chunk = chunks[i];
         setProgress(Math.round((i / chunks.length) * 100));
 
-        const response = await fetch('https://api.anthropic.com/v1/messages', {
+        const response = await fetch('/api/transform', {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
