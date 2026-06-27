@@ -1,25 +1,16 @@
-import React, { useState, useRef, useEffect } from 'react';
-import { Upload, Zap, Download, Loader, AlertCircle } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { Zap, Download, Loader, AlertCircle } from 'lucide-react';
 
 const StyleTransformer = () => {
   const [processing, setProcessing] = useState(false);
   const [transformedText, setTransformedText] = useState('');
   const [error, setError] = useState('');
   const [progress, setProgress] = useState(0);
-  const [apiKey, setApiKey] = useState(localStorage.getItem('anthropic_api_key') || '');
-  const [showApiSetup, setShowApiSetup] = useState(!apiKey);
-
-  useEffect(() => {
-    if ('serviceWorker' in navigator) {
-      navigator.serviceWorker.register('/service-worker.js').catch(err => {
-        console.log('Service worker registration failed:', err);
-      });
-    }
-  }, []);
+  const [apiKey, setApiKey] = useState('');
+  const [showApiSetup, setShowApiSetup] = useState(true);
 
   const saveApiKey = () => {
     if (apiKey.trim()) {
-      localStorage.setItem('anthropic_api_key', apiKey);
       setShowApiSetup(false);
       setError('');
     } else {
@@ -33,7 +24,7 @@ const StyleTransformer = () => {
       return;
     }
 
-    if (!apiKey) {
+    if (!apiKey.trim()) {
       setError('Please set your API key first');
       setShowApiSetup(true);
       return;
@@ -57,25 +48,45 @@ const StyleTransformer = () => {
         const chunk = chunks[i];
         setProgress(Math.round((i / chunks.length) * 100));
 
-        // Call the backend API proxy
-        const response = await fetch('/api/transform', {
+        const response = await fetch('https://api.anthropic.com/v1/messages', {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
+            'x-api-key': apiKey,
           },
           body: JSON.stringify({
-            text: chunk,
-            apiKey: apiKey,
+            model: 'claude-sonnet-4-20250514',
+            max_tokens: 1500,
+            system: `You are an expert at transforming dense, academic writing into the engaging, conversational style of Mark Manson. 
+
+Mark Manson's style includes:
+- Casual, conversational tone (like talking to a friend)
+- Strategic use of profanity and humor to make points stick
+- Direct, no-BS approach to complex topics
+- Short, punchy sentences mixed with thoughtful longer ones
+- Relatable examples and personal touches
+- Self-deprecating humor and honesty
+- Breaking down complex ideas into digestible pieces
+- Questioning assumptions and conventional wisdom
+- Making readers feel understood and heard
+
+Your job: Take the academic text and rewrite it in Mark Manson's voice. Keep the core ideas and meaning intact, but make it readable, memorable, and actually enjoyable.`,
+            messages: [
+              {
+                role: 'user',
+                content: `Transform this academic text into Mark Manson's style:\n\n${chunk}`
+              }
+            ]
           })
         });
 
         if (!response.ok) {
           const errorData = await response.json();
-          throw new Error(errorData.error || 'API error');
+          throw new Error(errorData.error?.message || 'API error');
         }
 
         const data = await response.json();
-        const transformed = data.text;
+        const transformed = data.content[0].text;
         fullTransformed += transformed + '\n\n';
         setTransformedText(fullTransformed);
       }
@@ -98,7 +109,7 @@ const StyleTransformer = () => {
       }
       await transformStyle(text);
     } catch (err) {
-      setError('Could not read clipboard. Make sure you have text copied.');
+      setError('Could not read clipboard.');
     }
   };
 
@@ -128,32 +139,33 @@ const StyleTransformer = () => {
       <div className="min-h-screen bg-gradient-to-br from-slate-950 via-purple-950 to-slate-900 flex items-center justify-center p-4">
         <div className="bg-gradient-to-br from-purple-900/50 to-blue-900/50 border border-purple-500/30 rounded-2xl p-8 max-w-md w-full backdrop-blur-sm">
           <h1 className="text-3xl font-bold text-purple-300 mb-2">Style Transformer</h1>
-          <p className="text-purple-200/70 mb-6">First time setup: Add your Anthropic API key</p>
+          <p className="text-purple-200/70 mb-6">Transform academic text into Mark Manson's style</p>
           
           <div className="space-y-4">
             <div>
-              <label className="block text-sm font-bold text-purple-300 mb-2">API Key</label>
+              <label className="block text-sm font-bold text-purple-300 mb-2">Anthropic API Key</label>
               <input
                 type="password"
                 value={apiKey}
                 onChange={(e) => setApiKey(e.target.value)}
+                onKeyPress={(e) => e.key === 'Enter' && saveApiKey()}
                 placeholder="sk-ant-..."
                 className="w-full bg-black/40 border border-purple-500/30 rounded-lg p-3 text-purple-100 placeholder-purple-400/40 focus:outline-none focus:border-purple-400/60 focus:ring-2 focus:ring-purple-500/20 font-mono text-sm"
               />
               <p className="text-xs text-purple-300/60 mt-2">
-                Get one at <a href="https://console.anthropic.com" target="_blank" rel="noopener noreferrer" className="text-purple-400 hover:text-purple-300 underline">console.anthropic.com</a>
+                Get one free at <a href="https://console.anthropic.com" target="_blank" rel="noopener noreferrer" className="text-purple-400 hover:text-purple-300 underline">console.anthropic.com</a>
               </p>
             </div>
 
             <button
               onClick={saveApiKey}
-              className="w-full bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-500 hover:to-pink-500 text-white font-bold py-3 px-6 rounded-lg transition-all transform hover:scale-105 active:scale-95"
+              className="w-full bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-500 hover:to-pink-500 text-white font-bold py-3 px-6 rounded-lg transition-all"
             >
-              Save & Continue
+              Start Using App
             </button>
 
             <p className="text-xs text-purple-300/50 text-center">
-              Your API key is saved locally. Never shared or stored on servers.
+              Your API key is never saved or sent anywhere except Anthropic.
             </p>
           </div>
         </div>
@@ -180,7 +192,6 @@ const StyleTransformer = () => {
               </div>
               <button
                 onClick={() => {
-                  localStorage.removeItem('anthropic_api_key');
                   setApiKey('');
                   setShowApiSetup(true);
                 }}
@@ -189,9 +200,6 @@ const StyleTransformer = () => {
                 Change API Key
               </button>
             </div>
-            <p className="text-purple-200/70 text-sm sm:text-base">
-              Turn dense academic writing into Mark Manson's conversational, no-BS style.
-            </p>
           </div>
         </div>
 
@@ -199,20 +207,17 @@ const StyleTransformer = () => {
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 sm:gap-8">
             <div className="space-y-6">
               <div className="bg-gradient-to-br from-purple-900/30 to-blue-900/30 border border-purple-500/20 rounded-2xl p-6 sm:p-8 backdrop-blur-sm">
-                <h2 className="text-lg sm:text-xl font-bold text-purple-300 mb-4 flex items-center gap-2">
-                  <Upload className="w-5 h-5" />
-                  Your Text
-                </h2>
+                <h2 className="text-lg sm:text-xl font-bold text-purple-300 mb-4">Your Text</h2>
                 <textarea
                   id="inputText"
-                  placeholder="Paste your academic text here..."
+                  placeholder="Paste academic text here..."
                   className="w-full h-64 sm:h-80 bg-black/40 border border-purple-500/30 rounded-xl p-4 text-purple-100 placeholder-purple-400/40 focus:outline-none focus:border-purple-400/60 focus:ring-2 focus:ring-purple-500/20 resize-none font-mono text-sm"
                 />
                 <div className="flex flex-col sm:flex-row gap-3 mt-4">
                   <button
                     onClick={() => handleTextAreaTransform(document.getElementById('inputText'))}
                     disabled={processing}
-                    className="flex-1 bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-500 hover:to-pink-500 disabled:opacity-50 disabled:cursor-not-allowed text-white font-bold py-3 px-6 rounded-lg transition-all transform hover:scale-105 active:scale-95 flex items-center justify-center gap-2 text-sm sm:text-base"
+                    className="flex-1 bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-500 hover:to-pink-500 disabled:opacity-50 text-white font-bold py-3 px-6 rounded-lg transition-all flex items-center justify-center gap-2"
                   >
                     {processing ? (
                       <>
@@ -229,7 +234,7 @@ const StyleTransformer = () => {
                   <button
                     onClick={handlePasteAndTransform}
                     disabled={processing}
-                    className="flex-1 bg-blue-600/40 hover:bg-blue-600/60 disabled:opacity-50 disabled:cursor-not-allowed text-blue-100 font-bold py-3 px-6 rounded-lg transition-all border border-blue-500/40 hover:border-blue-500/60 text-sm sm:text-base"
+                    className="flex-1 bg-blue-600/40 hover:bg-blue-600/60 disabled:opacity-50 text-blue-100 font-bold py-3 px-6 rounded-lg border border-blue-500/40"
                   >
                     Paste & Go
                   </button>
@@ -244,7 +249,7 @@ const StyleTransformer = () => {
                   </div>
                   <div className="w-full bg-black/40 rounded-full h-2">
                     <div
-                      className="bg-gradient-to-r from-purple-500 to-pink-500 h-2 rounded-full transition-all duration-300"
+                      className="bg-gradient-to-r from-purple-500 to-pink-500 h-2 rounded-full transition-all"
                       style={{ width: `${progress}%` }}
                     ></div>
                   </div>
@@ -259,33 +264,25 @@ const StyleTransformer = () => {
               )}
 
               {error && error.includes('Copied') && (
-                <div className="bg-green-900/20 border border-green-500/30 rounded-lg p-4 flex gap-3">
-                  <div className="w-5 h-5 text-green-400 flex-shrink-0">✓</div>
-                  <p className="text-green-200 text-sm">{error}</p>
+                <div className="bg-green-900/20 border border-green-500/30 rounded-lg p-4">
+                  <p className="text-green-200 text-sm">✓ {error}</p>
                 </div>
               )}
             </div>
 
             <div className="space-y-6">
               <div className="bg-gradient-to-br from-pink-900/30 to-purple-900/30 border border-pink-500/20 rounded-2xl p-6 sm:p-8 backdrop-blur-sm">
-                <h2 className="text-lg sm:text-xl font-bold text-pink-300 mb-4 flex items-center gap-2">
-                  <Zap className="w-5 h-5 text-yellow-400" />
-                  Mark Manson Style
-                </h2>
-                <div
-                  className="w-full h-64 sm:h-80 bg-black/40 border border-pink-500/30 rounded-xl p-4 overflow-y-auto text-pink-100 font-mono text-sm"
-                >
+                <h2 className="text-lg sm:text-xl font-bold text-pink-300 mb-4">Mark Manson Style</h2>
+                <div className="w-full h-64 sm:h-80 bg-black/40 border border-pink-500/30 rounded-xl p-4 overflow-y-auto text-pink-100 font-mono text-sm">
                   {transformedText || (
-                    <span className="text-pink-400/40">
-                      Your transformed text will appear here...
-                    </span>
+                    <span className="text-pink-400/40">Your transformed text will appear here...</span>
                   )}
                 </div>
                 <div className="flex flex-col sm:flex-row gap-3 mt-4">
                   <button
                     onClick={downloadTransformed}
                     disabled={!transformedText}
-                    className="flex-1 bg-gradient-to-r from-pink-600 to-purple-600 hover:from-pink-500 hover:to-purple-500 disabled:opacity-50 disabled:cursor-not-allowed text-white font-bold py-3 px-6 rounded-lg transition-all transform hover:scale-105 active:scale-95 flex items-center justify-center gap-2 text-sm sm:text-base"
+                    className="flex-1 bg-gradient-to-r from-pink-600 to-purple-600 hover:from-pink-500 hover:to-purple-500 disabled:opacity-50 text-white font-bold py-3 px-6 rounded-lg flex items-center justify-center gap-2"
                   >
                     <Download className="w-5 h-5" />
                     Download
@@ -293,21 +290,11 @@ const StyleTransformer = () => {
                   <button
                     onClick={copyToClipboard}
                     disabled={!transformedText}
-                    className="flex-1 bg-purple-600/40 hover:bg-purple-600/60 disabled:opacity-50 disabled:cursor-not-allowed text-purple-100 font-bold py-3 px-6 rounded-lg transition-all border border-purple-500/40 hover:border-purple-500/60 text-sm sm:text-base"
+                    className="flex-1 bg-purple-600/40 hover:bg-purple-600/60 disabled:opacity-50 text-purple-100 font-bold py-3 px-6 rounded-lg border border-purple-500/40"
                   >
                     Copy
                   </button>
                 </div>
-              </div>
-
-              <div className="bg-purple-900/20 border border-purple-500/20 rounded-xl p-4">
-                <p className="text-xs text-purple-300 font-bold mb-2">💡 Pro Tips:</p>
-                <ul className="text-xs text-purple-200/70 space-y-1">
-                  <li>• Start with 2-3 page excerpts</li>
-                  <li>• Longer input = better results</li>
-                  <li>• Works offline once loaded</li>
-                  <li>• Add to home screen on Android</li>
-                </ul>
               </div>
             </div>
           </div>
@@ -315,26 +302,10 @@ const StyleTransformer = () => {
       </div>
 
       <style jsx>{`
-        textarea::-webkit-scrollbar {
-          width: 8px;
-        }
-        textarea::-webkit-scrollbar-track {
-          background: transparent;
-        }
-        textarea::-webkit-scrollbar-thumb {
-          background: rgba(168, 85, 247, 0.4);
-          border-radius: 4px;
-        }
-        div::-webkit-scrollbar {
-          width: 8px;
-        }
-        div::-webkit-scrollbar-track {
-          background: transparent;
-        }
-        div::-webkit-scrollbar-thumb {
-          background: rgba(236, 72, 153, 0.4);
-          border-radius: 4px;
-        }
+        textarea::-webkit-scrollbar { width: 8px; }
+        textarea::-webkit-scrollbar-thumb { background: rgba(168, 85, 247, 0.4); border-radius: 4px; }
+        div::-webkit-scrollbar { width: 8px; }
+        div::-webkit-scrollbar-thumb { background: rgba(236, 72, 153, 0.4); border-radius: 4px; }
       `}</style>
     </div>
   );
