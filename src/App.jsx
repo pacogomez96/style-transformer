@@ -60,37 +60,16 @@ const StyleTransformer = () => {
         const chunk = chunks[i];
         setProgress(Math.round((i / chunks.length) * 100));
 
-        const response = await fetch('/api/transform', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'x-api-key': apiKey,
-          },
-          body: JSON.stringify({
-            model: 'claude-sonnet-4-20250514',
-            max_tokens: 1500,
-            system: `You are an expert at transforming dense, academic writing into the engaging, conversational style of Mark Manson. 
-
-Mark Manson's style includes:
-- Casual, conversational tone (like talking to a friend)
-- Strategic use of profanity and humor to make points stick
-- Direct, no-BS approach to complex topics
-- Short, punchy sentences mixed with thoughtful longer ones
-- Relatable examples and personal touches
-- Self-deprecating humor and honesty
-- Breaking down complex ideas into digestible pieces
-- Questioning assumptions and conventional wisdom
-- Making readers feel understood and heard
-
-Your job: Take the academic text and rewrite it in Mark Manson's voice. Keep the core ideas and meaning intact, but make it readable, memorable, and actually enjoyable.`,
-            messages: [
-              {
-                role: 'user',
-                content: `Transform this academic text into Mark Manson's style:\n\n${chunk}`
-              }
-            ]
-          })
-        });
+      const response = await fetch('/api/transform', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          text: chunk,
+          apiKey: apiKey,
+        })
+      });
 
         if (!response.ok) {
           const errorData = await response.json();
